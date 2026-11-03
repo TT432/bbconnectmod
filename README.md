@@ -40,6 +40,8 @@ cd <本仓库>/bbconnectmod
 | `sync.reload_resource_packs` | `false` | 额外执行一次资源包重载（等价 F3+T） |
 | `sync.chat_messages` | `true` | 在聊天栏报告连接与同步结果 |
 
+端口要在**同一台机器**上实测可绑定再改：本机存在 Windows 保留端口段，`47823`、`47824`、`45000` 在没有监听者的情况下也直接 `EADDRINUSE`（`netstat` 查不到占用者），而 `41234`、`41235`、`40000`、`51234` 可正常绑定。判断端口能不能用不要只看 `netstat`。
+
 ## 协议（v1）
 
 UTF-8、换行分隔的 JSON；一行一个消息，单行上限 16 MiB。
