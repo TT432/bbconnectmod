@@ -4,3 +4,4 @@ run/
 libs/
 repo/
 *.log
+logs/

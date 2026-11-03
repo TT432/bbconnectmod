@@ -2,8 +2,10 @@ package com.bbconnectmod.net;
 
 import com.bbconnectmod.BbConnectMod;
 import com.bbconnectmod.Config;
+import com.bbconnectmod.ysm.SelectionKeeper;
 import com.bbconnectmod.ysm.YsmBridge;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.common.ForgeConfigSpec;
@@ -16,6 +18,8 @@ import net.minecraftforge.fml.ModList;
  */
 public final class BbConnectClient {
     private static final BbConnectClient INSTANCE = new BbConnectClient();
+    private static final int RELOAD_BUSY_RETRIES = 6;
+    private static final long RELOAD_BUSY_RETRY_MS = 400;
 
     private volatile BridgeSession session;
     private volatile String lastStatus = "";
@@ -89,7 +93,7 @@ public final class BbConnectClient {
             Minecraft client = Minecraft.getInstance();
             boolean ysmReload = ModList.get().isLoaded("ysm") && readBoolean(Config.AUTO_RELOAD, true);
             CompletableFuture<String> reload = ysmReload
-                ? YsmBridge.reloadCatalog()
+                ? reloadKeepingSelection(client)
                 : CompletableFuture.completedFuture("skipped");
             if (readBoolean(Config.RELOAD_RESOURCE_PACKS, false)) {
                 client.execute(client::reloadResourcePacks);
@@ -107,6 +111,50 @@ public final class BbConnectClient {
         @Override
         public void disconnected() {
             lastStatus = "disconnected";
+        }
+
+        /**
+         * Pins the current model selection, reloads the catalog on the client thread and repairs
+         * the selection afterwards: model ids are content hashes, so a pushed edit changes the id
+         * and Yes Steve Model would otherwise drop the player back to the default model.
+         */
+        private CompletableFuture<String> reloadKeepingSelection(Minecraft client) {
+            return SelectionKeeper.capture(client).thenCompose(pin -> {
+                CompletableFuture<String> started = new CompletableFuture<>();
+                client.execute(() -> started.complete(null));
+                return started.thenCompose(ignored -> reloadWithRetry(0))
+                    .thenCompose(status -> SelectionKeeper.restore(client, pin, status));
+            });
+        }
+
+        /**
+         * Reloads, retrying while Yes Steve Model reports an in-progress scan. A busy scan keeps
+         * the previous catalog, so the files this save just wrote would silently never be used.
+         */
+        private static CompletableFuture<String> reloadWithRetry(int attempt) {
+            CompletableFuture<String> reload;
+            try {
+                reload = YsmBridge.reloadCatalog();
+            } catch (Throwable failure) {
+                return CompletableFuture.failedFuture(failure);
+            }
+            CompletableFuture<String> result = new CompletableFuture<>();
+            reload.whenComplete((status, failure) -> {
+                if (failure != null) {
+                    result.completeExceptionally(failure);
+                    return;
+                }
+                if (status != null && status.startsWith("BUSY") && attempt < RELOAD_BUSY_RETRIES) {
+                    CompletableFuture.delayedExecutor(RELOAD_BUSY_RETRY_MS, TimeUnit.MILLISECONDS)
+                        .execute(() -> reloadWithRetry(attempt + 1).whenComplete((next, nextFailure) -> {
+                            if (nextFailure != null) result.completeExceptionally(nextFailure);
+                            else result.complete(next);
+                        }));
+                    return;
+                }
+                result.complete(status);
+            });
+            return result;
         }
     }
 
