@@ -13,22 +13,33 @@
 
 模组编译期依赖本地构建的 Yes Steve Model：插件的按钮、卡片解析与热重载都直接使用 YSM 的公开类（`PlayerModelScreen`、`CatalogModelButton`、`ClientModelService`、`ModelRuntime`）。
 
+**CI 自动构建**（`.github/workflows/build.yml`，`windows-latest` + JDK 17 + Gradle 8.12）：按固定 commit `15c2c25` 检出 YSM → 应用 `ci/ysm-compile.patch` → 构建 dev jar 放进 `libs/` → `gradle build`（含单元测试）→ 上传 `build/libs/bbconnectmod-<version>.jar`；推 `v*` tag 时额外建 release 并附该 jar。
+
+`ci/ysm-compile.patch` 是什么：YSM 的 `dev/1.20` 在 JDK 17 + Forge 47.4.3 下有两个匿名 `Checkbox` 子类编不过（javac 报 *已在构造器中定义了变量 o*）。补丁只把这两个匿名类改成命名内部类，不涉及本模组用到的任何 API，也不改行为。补丁只作用于 CI 的一次性构建，发布物里没有 YSM 代码。
+
+本地复现同一套流程：
+
 ```sh
-# 1. 取开源 YSM（dev/1.20 分支）并构建 raw（named mappings）jar
-git clone --depth 1 -b dev/1.20 https://github.com/YesSteveModel/YesSteveModel.git ysm
+git clone --filter=blob:none --no-checkout https://github.com/YesSteveModel/YesSteveModel.git ysm
 cd ysm
-./gradlew compileJava jar -x generateBuiltinModelIndex -x generateBuiltinDefaultContract -x verifyBuiltinModelIndex
+git fetch --depth 1 origin 15c2c25f5b50f54ee099bc474483dc4b588d956d
+git checkout --detach FETCH_HEAD
+git apply --verbose <本仓库>/ci/ysm-compile.patch
+# 编译只需要一个存在的绝对路径，不加载它
+printf 'ysm.native_path=%s/ysm_placeholder.dll\nysm.fast_run=true\n' "$(pwd -W)" > local.properties
+: > ysm_placeholder.dll
+gradle -x generateBuiltinModelIndex -x generateBuiltinDefaultContract -x verifyBuiltinModelIndex jar
 # 产物：build/devlibs/ysm-3.0-dev-forge+mc1.20.1-raw.jar
 
-# 2. 放入本工程的 libs/ 并构建
-cp build/devlibs/ysm-3.0-dev-forge+mc1.20.1-raw.jar <本仓库>/bbconnectmod/libs/ysm-3.0-dev-forge+mc1.20.1.jar
-cd <本仓库>/bbconnectmod
-./gradlew build      # 产物：build/libs/bbconnectmod-1.0.0.jar
+mkdir -p <本仓库>/libs
+cp build/devlibs/ysm-3.0-dev-forge+mc1.20.1-raw.jar <本仓库>/libs/ysm-3.0-dev-forge+mc1.20.1.jar
+cd <本仓库>
+gradle build      # 产物：build/libs/bbconnectmod-1.0.0.jar（dev）与 build/reobfJar/output.jar（SRG，发布用）
 ```
 
-`YSM` 的 native 库在构建时被 YSM 的 Gradle 脚本要求（`YSM_NATIVE_PATH` / `ysm.native_path`），只做编译用途时可用已有的 `ysm-core.dll` 占位，并跳过 `generateBuiltin*` / `verifyBuiltinModelIndex` 任务。
+`JAVA_HOME` 必须是 JDK 17（Forge 1.20.1）。
 
-本仓库实测所用的本地构建对 YSM 源码做了两处 UI 语法改造（`PlayerModelScreen`、`ExtraPlayerConfigScreen` 里两个匿名 `Checkbox` 子类改为命名内部类），因为当前 javac 对这两个匿名类报 «变量 o 已在构造器中定义»；改造不涉及本模组用到的任何 API。
+产物的区别（实测）：`build/libs/bbconnectmod-*.jar` 与 `build/reobfJar/output.jar` **字节一致**（md5 都是 `3cdccfb0…`）。ForgeGradle 6 的 `official` channel 编译出来的字节码已经是 SRG 名（`Minecraft.m_91087_()`、`Minecraft.f_91062_`），所以 `jar` 的产物本身就是可发布的生产 jar，`reobfJar` 无事可做。CI 仍从 `build/reobfJar/output.jar` 取件，是为了在映射发生变化时沿用标准流程而不是依赖这个巧合。
 
 ## 运行期配置
 

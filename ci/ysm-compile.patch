@@ -1,0 +1,85 @@
+diff --git a/src/main/java/com/elfmcys/ysm/client/gui/ExtraPlayerConfigScreen.java b/src/main/java/com/elfmcys/ysm/client/gui/ExtraPlayerConfigScreen.java
+index 249261c..f5b4d75 100644
+--- a/src/main/java/com/elfmcys/ysm/client/gui/ExtraPlayerConfigScreen.java
++++ b/src/main/java/com/elfmcys/ysm/client/gui/ExtraPlayerConfigScreen.java
+@@ -50,14 +50,8 @@ public class ExtraPlayerConfigScreen extends Screen {
+ 
+         Component name = Component.translatable("gui.yes_steve_model.hide_or_show");
+         int nameWidth = this.font.width(name) + 24;
+-        this.addRenderableWidget(new Checkbox((this.width - nameWidth) / 2, this.height + yOffset, nameWidth, 20, name,
+-            ExtraPlayerScreenConfig.DISABLE_PLAYER_RENDER.get(), true) {
+-            @Override
+-            public void onPress() {
+-                super.onPress();
+-                ExtraPlayerScreenConfig.DISABLE_PLAYER_RENDER.set(this.selected());
+-            }
+-        });
++        this.addRenderableWidget(new HidePlayerCheckbox((this.width - nameWidth) / 2, this.height + yOffset, nameWidth, 20,
++            name, ExtraPlayerScreenConfig.DISABLE_PLAYER_RENDER.get(), true));
+     }
+ 
+     @Override
+@@ -177,4 +171,19 @@ public class ExtraPlayerConfigScreen extends Screen {
+         ExtraPlayerScreenConfig.PLAYER_YAW_OFFSET.set((double)this.yawOffset);
+         super.onClose();
+     }
++
++    // Named subclass instead of an anonymous one: javac rejects the anonymous form here
++    // ("variable o is already defined in constructor") with the Checkbox class shipped in libs/.
++    private static final class HidePlayerCheckbox extends Checkbox {
++        private HidePlayerCheckbox(int x, int y, int width, int height, Component message, boolean value,
++            boolean showLabel) {
++            super(x, y, width, height, message, value, showLabel);
++        }
++
++        @Override
++        public void onPress() {
++            super.onPress();
++            ExtraPlayerScreenConfig.DISABLE_PLAYER_RENDER.set(this.selected());
++        }
++    }
+ }
+diff --git a/src/main/java/com/elfmcys/ysm/client/gui/PlayerModelScreen.java b/src/main/java/com/elfmcys/ysm/client/gui/PlayerModelScreen.java
+index ddf6139..7648954 100644
+--- a/src/main/java/com/elfmcys/ysm/client/gui/PlayerModelScreen.java
++++ b/src/main/java/com/elfmcys/ysm/client/gui/PlayerModelScreen.java
+@@ -244,15 +244,9 @@ public class PlayerModelScreen extends ModelScreen {
+         }
+ 
+         addRenderableWidget(
+-            new Checkbox(x + 5, y - 22, 20, 20, Component.translatable("gui.yes_steve_model.show_model_id_first"),
+-                ClientConfig.SHOW_MODEL_ID_FIRST.get(), true) {
+-                @Override
+-                public void onPress() {
+-                    super.onPress();
+-                    ClientConfig.SHOW_MODEL_ID_FIRST.set(selected());
+-                    ClientConfig.SHOW_MODEL_ID_FIRST.save();
+-                }
+-            });
++            new ModelIdFirstCheckbox(x + 5, y - 22, 20, 20,
++                Component.translatable("gui.yes_steve_model.show_model_id_first"),
++                ClientConfig.SHOW_MODEL_ID_FIRST.get(), true));
+ 
+         addCategoryButton(x + 328, 32, CatalogBrowserState.Category.ALL, "gui.yes_steve_model.all_models");
+         addCategoryButton(x + 308, 48, CatalogBrowserState.Category.AUTH, "gui.yes_steve_model.auth_models");
+@@ -677,4 +671,20 @@ public class PlayerModelScreen extends ModelScreen {
+         return Minecraft.getInstance().getLanguageManager().getSelected();
+     }
+ 
++    // Named subclass instead of an anonymous one: javac rejects the anonymous form here
++    // ("variable o is already defined in constructor") with the Checkbox class shipped in libs/.
++    private static final class ModelIdFirstCheckbox extends Checkbox {
++        private ModelIdFirstCheckbox(int x, int y, int width, int height, Component message, boolean value,
++            boolean showLabel) {
++            super(x, y, width, height, message, value, showLabel);
++        }
++
++        @Override
++        public void onPress() {
++            super.onPress();
++            ClientConfig.SHOW_MODEL_ID_FIRST.set(selected());
++            ClientConfig.SHOW_MODEL_ID_FIRST.save();
++        }
++    }
++
+ }

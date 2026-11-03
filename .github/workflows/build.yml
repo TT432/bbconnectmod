@@ -1,0 +1,98 @@
+name: build
+
+# 为什么不是单纯 ./gradlew build：
+# 本模组在编译期直接使用 Yes Steve Model 的公开类（PlayerModelScreen / CatalogModelButton /
+# ClientModelService / ModelRuntime 等），需要一份 named mappings 的 YSM dev jar。
+# YSM 没有发布 dev jar 的仓库，所以 CI 自己按固定 commit 构建它。
+#
+# 两个已知事实（都实测过，改这里前先读）：
+# 1. dev/1.20 的源码在 JDK 17 + Forge 47.4.3 下编译失败：两个匿名 Checkbox 子类报
+#    «已在构造器中定义了变量 o»。ci/ysm-compile.patch 只把这两个匿名类改成命名内部类。
+# 2. YSM 的 native 库路径是构建期强制的（gradle/native.gradle），编译不需要真的 dll，
+#    指向一个空占位文件即可。
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  YSM_REPO: https://github.com/YesSteveModel/YesSteveModel.git
+  YSM_COMMIT: 15c2c25f5b50f54ee099bc474483dc4b588d956d
+  YSM_JAR: ysm-3.0-dev-forge+mc1.20.1.jar
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.12'
+
+      - name: Build Yes Steve Model (compileOnly dependency)
+        shell: bash
+        run: |
+          set -euo pipefail
+          ysm="$RUNNER_TEMP/ysm"
+          rm -rf "$ysm"
+          git clone --quiet --filter=blob:none --no-checkout "$YSM_REPO" "$ysm"
+          git -C "$ysm" fetch --quiet --depth 1 origin "$YSM_COMMIT"
+          git -C "$ysm" checkout --quiet --detach "$YSM_COMMIT"
+          echo "YSM commit: $(git -C "$ysm" rev-parse HEAD)"
+
+          cd "$ysm"
+          git apply --verbose "$GITHUB_WORKSPACE/ci/ysm-compile.patch"
+
+          # 编译只需要一个存在的绝对路径，不加载它
+          printf 'ysm.native_path=%s/ysm_placeholder.dll\nysm.fast_run=true\n' "$(pwd -W)" > local.properties
+          : > ysm_placeholder.dll
+
+          gradle --no-daemon --console=plain \
+            -x generateBuiltinModelIndex \
+            -x generateBuiltinDefaultContract \
+            -x verifyBuiltinModelIndex \
+            jar
+
+          mkdir -p "$GITHUB_WORKSPACE/libs"
+          cp "build/devlibs/${YSM_JAR%.jar}-raw.jar" "$GITHUB_WORKSPACE/libs/$YSM_JAR"
+          ls -l "$GITHUB_WORKSPACE/libs"
+
+      - name: Build mod
+        shell: bash
+        run: gradle --no-daemon --console=plain build
+
+      - name: Collect jar
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(grep -E '^mod_version=' gradle.properties | cut -d= -f2 | tr -d '[:space:]')"
+          # reobfJar 的产物才是生产命名（SRG）的 jar，直接发 build/libs 里的 dev jar 会更名失败
+          cp build/reobfJar/output.jar "build/libs/bbconnectmod-${version}.jar"
+          ls -l "build/libs/bbconnectmod-${version}.jar"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bbconnectmod-jar
+          path: build/libs/bbconnectmod-*.jar
+          if-no-files-found: error
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/libs/bbconnectmod-*.jar
+          fail_on_unmatched_files: true
+          generate_release_notes: true

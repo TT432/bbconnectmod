@@ -10,6 +10,8 @@ rem
 rem No Gradle in this chain: Gradle's console handling blocks the mcmcp launcher. "< nul" keeps
 rem the generated script's failure-path "pause" from hanging the launcher on a crash.
 set "AI_DEBUG_PORT=%~1"
-set "YSM_SRC=%~dp0..\..\work\ysm_src"
+rem 默认假设：本仓库与 YSM dev clone 同级（<parent>/bbconnectmod 与 <parent>/work/ysm_src）。
+rem 其他布局用环境变量 YSM_SRC 指定绝对路径。
+if not defined YSM_SRC set "YSM_SRC=%~dp0..\..\work\ysm_src"
 cd /d "%YSM_SRC%\run\client_a"
 call "%YSM_SRC%\build\moddev\runClient.cmd" < nul

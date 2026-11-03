@@ -5,3 +5,17 @@ libs/
 repo/
 *.log
 logs/
+
+# local dev harness (absolute paths to this machine's YSM dev clone)
+.mcmcp
+local.properties
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+bin/
+out/
