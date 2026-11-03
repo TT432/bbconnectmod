@@ -83,7 +83,7 @@ UTF-8、换行分隔的 JSON；一行一个消息，单行上限 16 MiB。
 
 ## 实机验证（clientsmoke + mcmcp）
 
-YSM 的 dev 客户端用 `clientsmoke` 的 `AIDebugServer` 驱动（HTTP `/ping` `/loaded` `/eval` `/enterworld` `/close`），宿主侧 `.mcmcp` 指向 ModDevGradle **预生成**的启动脚本，不要经 Gradle 启动：
+YSM 的 dev 客户端用 `clientsmoke` 的 `AIDebugServer` 驱动（HTTP `/ping` `/loaded` `/eval` `/enterworld` `/close`），宿主侧 `.mcmcp`（本仓库已提交）指向 ModDevGradle **预生成**的启动脚本，不要经 Gradle 启动：
 
 ```json
 {"ysm-dev": ["cmd.exe", "/c", "D:\\...\\run_ysm.cmd", "{port}"]}
@@ -95,6 +95,8 @@ set "AI_DEBUG_PORT=%~1"
 cd /d D:\...\ysm_src\run\client_a
 call ..\..\build\moddev\runClient.cmd < nul
 ```
+
+仓库内的 `tools/run_ysm_dev.cmd` 就是这份包装脚本（`YSM_SRC` 默认取 `<仓库>/../work/ysm_src`，按需改）。
 
 一次完整流程：
 

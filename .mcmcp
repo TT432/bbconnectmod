@@ -1,0 +1,3 @@
+{
+  "ysm-dev": ["cmd.exe", "/c", "tools\\run_ysm_dev.cmd", "{port}"]
+}
