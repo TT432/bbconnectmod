@@ -1,0 +1,8 @@
+{
+  "bbconnectmod.message.connected": "Bridge connected to %s",
+  "bbconnectmod.message.connect_failed": "Could not reach the Blockbench plugin at %s: %s",
+  "bbconnectmod.message.not_a_folder": "Not a model folder: %s",
+  "bbconnectmod.message.opened": "Model folder opened in Blockbench",
+  "bbconnectmod.message.plugin_error": "Blockbench plugin error: %s",
+  "bbconnectmod.message.synced": "Sent %s file(s) to the game; model reload: %s"
+}

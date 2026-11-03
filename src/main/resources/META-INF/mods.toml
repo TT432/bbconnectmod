@@ -1,0 +1,35 @@
+modLoader="javafml"
+loaderVersion="${loader_version_range}"
+license="${mod_license}"
+
+[[mods]]
+modId="${mod_id}"
+version="${mod_version}"
+displayName="${mod_name}"
+description='''Connects Yes Steve Model folder-form models to Blockbench Community.
+
+Open the Yes Steve Model model screen, click "Connect to BB" below a folder-form model,
+and the model folder is opened as a Blockbench project. Saving in Blockbench writes the
+model back and asks the game to reload its model catalog through a local socket that the
+game dials to the Blockbench plugin.'''
+
+[[dependencies.${mod_id}]]
+    modId="forge"
+    mandatory=true
+    versionRange="${forge_version_range}"
+    ordering="NONE"
+    side="CLIENT"
+
+[[dependencies.${mod_id}]]
+    modId="minecraft"
+    mandatory=true
+    versionRange="${minecraft_version_range}"
+    ordering="NONE"
+    side="CLIENT"
+
+[[dependencies.${mod_id}]]
+    modId="yes_steve_model"
+    mandatory=false
+    versionRange="[2.6,)"
+    ordering="AFTER"
+    side="CLIENT"

@@ -1,0 +1,8 @@
+{
+  "bbconnectmod.message.connected": "已连接到 Blockbench 插件 %s",
+  "bbconnectmod.message.connect_failed": "无法连接到 %s 的 Blockbench 插件：%s",
+  "bbconnectmod.message.not_a_folder": "不是模型文件夹：%s",
+  "bbconnectmod.message.opened": "模型文件夹已在 Blockbench 中打开",
+  "bbconnectmod.message.plugin_error": "Blockbench 插件错误：%s",
+  "bbconnectmod.message.synced": "已向游戏同步 %s 个文件；模型重载：%s"
+}
