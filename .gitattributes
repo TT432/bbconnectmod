@@ -1,0 +1,9 @@
+* text=auto
+*.patch -text
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.java text eol=lf
+*.gradle text eol=lf
+*.yml text eol=lf
+*.json text eol=lf
+*.md text eol=lf
