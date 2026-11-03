@@ -171,6 +171,8 @@ EOF
 | 删除内容能写回 | 从项目删除一个 cube 保存：导出文件里对应 cube 消失、cube 总数 52→51，`Report` 无 error |
 | 恢复写入前的目录状态 | 移除全部测试 cube 后保存，`models/main.json` md5 回到测试前的 `c70fc47a…`（逐字节一致） |
 | 发布产物（插件 1.0.1 单文件） | 部署最终 `plugins/bbconnectmod/bbconnectmod.js` 并重启 BB：握手日志 `handshake accepted by plugin 1.0.1`（`PLUGIN_VERSION` 同源），再保存一次仍是 `Sent 1 file(s) … COMMITTED/28 models/0 errors \| selection:kept`，导出文件含新增 cube；随后删除该 cube 保存，md5 再次回到 `c70fc47a…` |
+| 插件端端口可配 | 插件设置 `bbconnectmod_port` 41234 → 41235 → 41234（每次重载插件生效）：`netstat` 每次都只有一个 `127.0.0.1:<port>` 监听者、旧端口不残留 |
+| 依赖 ysm_utils 的延后启用 | 卸载 `ysm_utils` 后 `bbconnectmod` 变为 `dependency_blocked=true / disabled=false / missing=['ysm_utils']` 且 `41234` 停止监听；重新装载真实 `ysm_utils`（`loadFromFile(..., false)`）后自动恢复（`blocked=false`、动作重新注册、`41234` 重新监听）；详情页显示「⚠ Dependencies missing」与「Install dependencies」按钮、不显示启用/禁用按钮 |
 
 ## 已知边界
 
@@ -179,3 +181,4 @@ EOF
 - 几何写回由 Blockbench 的 Bedrock codec 重新编译，可能丢弃 YSM 包内 codec 不认识的字段；动画只写回 Blockbench 已加载且路径位于包内的文件。
 - 选择恢复只对**单人集成服务器**有效（需要服务器线程上的 `ModelInfoCapability` 与 `ServerModelService`）；连远端服务器时重载后由服务器决定，`sync_ack.reload` 会带 `selection:unavailable`。
 - 若写回把模型目录改成不再被 YSM 接受（例如删掉 `ysm.json` 必需字段），该路径从目录消失，选择自然回退默认模型（`selection:missing`），这是内容本身的问题而不是选择恢复失效。
+- 插件端换端口已实机验证；**模组侧换端口**只在代码层确认（`session()` 首次建立时读 `bridge.port`，改配置需重启客户端），本轮未单独跑非默认端口的实机用例。
