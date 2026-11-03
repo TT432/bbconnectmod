@@ -1,13 +1,72 @@
 # bbconnectmod
 
-1.20.1 Forge 模组端：在 Yes Steve Model 的模型界面给「以文件夹形式加载」的模型提供「连接到 BB」，把模型文件夹交给 Blockbench Community 的 `bbconnectmod` 插件；Blockbench 保存后由插件写回模型文件夹并通知本模组重载模型目录。
+**中文** | [English](README.en.md)
 
-## 连接方向与端口
+在 Yes Steve Model 的模型界面给**以文件夹形式加载**的模型加一个「连接到 BB」按钮：点一下就把该模型包作为项目在 Blockbench 里打开，Blockbench 保存时自动写回模型文件夹并通知游戏重载，玩家仍停在原来那个模型上。
+
+## 你需要什么
+
+| 组件 | 版本要求 | 位置 |
+|---|---|---|
+| Blockbench 社区版 | **≥ 5.3.85**（插件声明的 `min_version`） | https://github.com/TT432/blockbench |
+| 插件 `ysm_utils` | 2.5.2-community.1（实测版本） | 社区版插件商店（社区源） |
+| 插件 `bbconnectmod`（BB Connect） | ≥ 1.0.1 | 社区版插件商店（社区源），**依赖 `ysm_utils`** |
+| Yes Steve Model | `dev/1.20`（3.0 dev，mod id 是 **`ysm`**） | https://github.com/YesSteveModel/YesSteveModel |
+| 本模组 | 1.0.0，Minecraft **1.20.1** + **Forge 47.4.3+** | 本仓库 Actions 产物 / Releases |
+
+`bbconnectmod` 插件依赖 `ysm_utils`：前置没装、被禁用或自身缺少前置时，插件保持「已安装」但不启用，插件列表与详情页会显示「缺少前置插件」并写明是哪个前置，详情页可直接点「安装前置插件」就地补齐；前置就位后自动启用（不需要重装或重启）。**卸载/禁用前置**时，依赖它的插件会在运行期被挡回「缺少前置插件」状态。
+
+## 安装
+
+1. 安装 **Blockbench 社区版 ≥ 5.3.85**（低于这个版本没有插件依赖机制，商店里会提示版本不满足）。
+2. 打开 Blockbench → 插件商店 → 安装 `ysm_utils` 与 `bbconnectmod`（顺序无所谓）。
+3. 首次启用会请求 Node 模块权限：`net`（只在 `127.0.0.1` 上监听）与 `fs`（读写模型包目录）。拒绝这两项时连接与写回都不可用。
+4. 游戏侧：把本模组 jar 与 Yes Steve Model 一起放进 `mods/`，启动 1.20.1 Forge 客户端。
+5. 需要换端口时见下面的「端口」一节。
+
+## 用户侧用法
+
+1. **打开 YSM 模型界面**（YSM 的默认按键或游戏内 YSM 菜单）。
+2. 只有**文件夹形式**加载的模型才有按钮：模型源是模型目录（内含 `ysm.json`），例如 `ysm/custom/demo/`。`.zip` / `.ysm` / 服务器下发的模型没有「连接到 BB」。
+3. 点模型卡片下方的 **「连接到 BB」** → Blockbench 自动把该文件夹作为项目打开（几何 + 贴图 + 动画 + 动画控制器），并写入桥接标记。
+4. 在 Blockbench 里正常编辑，**保存（Ctrl+S）即触发同步**：插件把几何/贴图/动画写回同一文件夹，然后通知游戏端重载模型目录。
+5. 游戏聊天栏会给出结果，例如：
+   `Sent 1 file(s) to the game; model reload: COMMITTED/28 models/0 errors | selection:kept`
+6. 结束编辑直接关掉 Blockbench 即可；游戏端不需要保持「连接」状态。
+
+### 聊天栏 / 状态提示怎么读
+
+| 提示 | 含义 |
+|---|---|
+| `Sent 0 file(s)` | 这次保存没有产生任何内容变化，不写盘、不重载（正常） |
+| `Sent N file(s) … COMMITTED/28 models/0 errors` | 写回成功，模型目录重载成功 |
+| `selection:kept` | 玩家仍停在原来那个模型（模型 id 是内容哈希，重载后会换 id，这是模组按路径重新选中的结果） |
+| `selection:unchanged` | 内容哈希没变，无需修复选择（正常） |
+| `selection:declined` | 重载期间玩家自己切到了另一个可用模型，模组不覆盖玩家操作 |
+| `selection:missing` | 该路径已不在模型目录里（例如写回把 `ysm.json` 改坏了），选择回退默认模型 |
+| `selection:unavailable` | 当前连的是远端服务器，模组无法改写服务端选择（单人集成服务器才有此项） |
+
+### 端口
+
+- 默认 `127.0.0.1:41234`，两侧各自可配：
+  - 模组：`config/bbconnectmod-client.toml` → `bridge.port`（改完需重启客户端）
+  - 插件：Blockbench → 设置 → 插件 → BB Connect → 「BB Connect 端口」（`bbconnectmod_port`，改完立即重开监听）
+- 两个值必须一致，且**同一台机器**上该端口要真的能 bind。Windows 有保留端口段（例如 `50000–50059` 与部分 Hyper-V 保留段），这些端口在 `netstat` 里看不到占用者也会报 `EADDRINUSE`；判断方式见 `netsh int ipv4 show excludedportrange protocol=tcp` 加实际 bind 试探。
+- 改端口后监听失败时，插件状态栏会显示原因；换到 `20000–40000` 区间里未被排除的端口通常最稳。
+
+### 连不上时先查这些
+
+| 现象 | 检查 |
+|---|---|
+| 点按钮提示连接失败 | 插件是否启用（是否因缺少 `ysm_utils` 被延后）、端口是否与模组一致、安全软件是否拦 `127.0.0.1` |
+| 按钮点了但 Blockbench 没开项目 | 插件面板是否显示「等待游戏连接」；模型目录里是否有 `ysm.json` |
+| 保存后游戏里模型没变 | 模组 `sync.auto_reload` 是否为 `true`；游戏日志里的模型重载结果 |
+| 聊天栏 `selection:unavailable` | 连的是远端服务器，选择恢复只在单人集成服务器有效 |
+
+## 连接方向与端口（实现）
 
 - **游戏端主动拨号**：模组不监听任何端口，只在点击「连接到 BB」时连接 `bridge.host:bridge.port`（默认 `127.0.0.1:41234`）。插件端在 `127.0.0.1` 上监听；插件不会发现游戏，也没有广播。
-- 端口两端各自可配：
-  - 模组：`config/bbconnectmod-client.toml` → `bridge.port`
-  - 插件：Blockbench 设置 → 插件 → BB Connect 的端口（`bbconnectmod_port`）
+- 端口两端各自可配（见上）。
 
 ## 构建
 
@@ -51,8 +110,6 @@ gradle build      # 产物：build/libs/bbconnectmod-1.0.0.jar（dev）与 build
 | `sync.reload_resource_packs` | `false` | 额外执行一次资源包重载（等价 F3+T） |
 | `sync.chat_messages` | `true` | 在聊天栏报告连接与同步结果 |
 
-端口要在**同一台机器**上实测可绑定再改：本机存在 Windows 保留端口段，`47823`、`47824`、`45000` 在没有监听者的情况下也直接 `EADDRINUSE`（`netstat` 查不到占用者），`45317`、`45351`、`45361`、`46011` 同批实测同样不可 bind，而 `41234`、`41235`、`40000`、`38123`、`51234` 可正常绑定。判断端口能不能用不要只看 `netstat`，用 `netsh int ipv4 show excludedportrange protocol=tcp` 加上实际 bind 试探。
-
 端口冲突在 AIDebugServer 上的表现是启动日志一行 `Failed to start AI Debug Server on port N: BindException`，随后客户端**照常启动**、只是没有调试通道（自动化脚本会看到「已连接但状态 idle」）。
 
 ## 协议（v1）
@@ -86,7 +143,7 @@ UTF-8、换行分隔的 JSON；一行一个消息，单行上限 16 MiB。
 
 - **模型 id 是内容哈希**：Yes Steve Model 的 `ModelInfoCapability.modelId` 是模型内容的 Hash256，`ModelSelectionService.resolve()` 找不到该 id 就 `selectDefault()` 回退默认模型。所以只要写回改变了内容，旧 id 必然失效——这是「保存后玩家模型变成默认模型」的根因，与全量还是增量写回无关（实测：全量重写与只改一个 cube 都换 id）。
   - 证据：写回前 capability `modelId=f93c4f11… texture=gsl`；只改几何（1 个文件）写回后 `modelId=5bc2f4a6… texture=default`。
-- **`SelectionKeeper`**：重载前在集成服务器线程按**目录路径**（`CatalogLocation.value()`，如 `local:custom/bbdemo`）记住 `(player, path, texture, modelId)`，重载后在服务器线程用 `catalog.findPath(path)` 取到新 id 并 `SessionProtocolHandler.applyCommandSelection(...)` 重新选中同一路径；贴图仍存在就保留，否则退回模型默认/字典序第一个贴图。
+- **`SelectionKeeper`**：重载前在集成服务器线程按**目录路径**（`CatalogLocation.value()`，如 `local:custom/demo`）记住 `(player, path, texture, modelId)`，重载后在服务器线程用 `catalog.findPath(path)` 取到新 id 并 `SessionProtocolHandler.applyCommandSelection(...)` 重新选中同一路径；贴图仍存在就保留，否则退回模型默认/字典序第一个贴图。
   - 只在玩家原本就选中该模型时才 pin；重载期间玩家主动切到另一个**可解析**的模型时不覆盖（`selection:declined`）。
   - 结果写进 `sync_ack.reload`，形如 `COMMITTED/28 models/0 errors | selection:kept`；`unchanged` = 内容哈希没变、`missing` = 该路径已不在目录、`unavailable` = 非单人集成服务器。
 - **扫描忙时重试**：`ReloadableModelCatalog.reload()` 在有扫描进行中时立即返回 `BUSY`（此时刚写入的内容不会被采纳）。游戏端对 `BUSY` 最多重试 6 次、每次间隔 400 ms，避免「保存了但游戏里没变」。
@@ -94,7 +151,7 @@ UTF-8、换行分隔的 JSON；一行一个消息，单行上限 16 MiB。
 
 ## 名称锁定（不改名）
 
-YSM 模型包里的骨骼、定位器、动画、动画控制器名都由包内文件按名称引用，改名会让引用断掉。绑定时模组侧插件在项目上写入两个标记：
+YSM 模型包里的骨骼、定位器、动画、动画控制器名都由包内文件按名称引用，改名会让引用断掉。绑定时插件在项目上写入两个标记：
 
 - `Project.bbconnect_pack`：本项目对应的模型包目录（插件自己的绑定标记）；
 - `Project.ysm_project_info.path`：ysm_utils 的约定字段（它也用它决定「当前信息」菜单是否可用——即 ysm_utils 判断「当前是 YSM 项目」的唯一依据，只在它自己的导入流程里写入，桥接项目由本插件补上）。
@@ -108,7 +165,7 @@ Blockbench 核心据此在**桥接项目**下把「Bedrock Export: Normalize Nam
 ## 测试
 
 ```sh
-./gradlew test
+gradle test
 ```
 
 `src/test/java/com/bbconnectmod/net/BridgeSessionTest.java` 用真实 TCP socket 配一个假插件端，覆盖协议层，**不需要启动游戏**：
@@ -121,25 +178,18 @@ Blockbench 核心据此在**桥接项目**下把「Bedrock Export: Normalize Nam
 
 ## 实机验证（clientsmoke + mcmcp）
 
-YSM 的 dev 客户端用 `clientsmoke` 的 `AIDebugServer` 驱动（HTTP `/ping` `/loaded` `/eval` `/enterworld` `/close`），宿主侧 `.mcmcp`（本仓库已提交）指向 ModDevGradle **预生成**的启动脚本，不要经 Gradle 启动：
+YSM 的 dev 客户端用 `clientsmoke` 的 `AIDebugServer` 驱动（HTTP `/ping` `/loaded` `/eval` `/enterworld` `/close`），宿主侧 `.mcmcp`（本机开发夹具，不进版本库）指向 ModDevGradle **预生成**的启动脚本，不要经 Gradle 启动：
 
 ```json
-{"ysm-dev": ["cmd.exe", "/c", "D:\\...\\run_ysm.cmd", "{port}"]}
+{"ysm-dev": ["cmd.exe", "/c", "tools\\run_ysm_dev.cmd", "{port}"]}
 ```
 
-```bat
-@echo off
-set "AI_DEBUG_PORT=%~1"
-cd /d D:\...\ysm_src\run\client_a
-call ..\..\build\moddev\runClient.cmd < nul
-```
-
-仓库内的 `tools/run_ysm_dev.cmd` 就是这份包装脚本（`YSM_SRC` 默认取 `<仓库>/../work/ysm_src`，按需改）。
+仓库内的 `tools/run_ysm_dev.cmd` 是包装脚本，默认取 `<仓库>/../work/ysm_src`，可用环境变量 `YSM_SRC` 覆盖。
 
 一次完整流程：
 
 ```sh
-cd bbconnectmod && ./gradlew compileJava                     # 或 jar（见下方映射说明）
+cd bbconnectmod && gradle compileJava                     # 或 jar（见下方映射说明）
 # 把 build/classes 打成 dev-namespace jar，放进 YSM 的 run/client_a/mods
 python - <<'EOF'
 import zipfile, pathlib
@@ -165,12 +215,12 @@ EOF
 - **`/eval` 的类加载器看不到模组 jar 里的类**：`com.bbconnectmod.*` 在 `/eval` 片段里编译报「程序包不存在」，要经 `Class.forName("com.bbconnectmod.ysm.YsmBridge")` 反射调用；YSM 自身（`build/classes` 直挂）反而可直接引用。
 - **Alt+Y 这类带修饰键的键位无法用 `KeyboardHandler.keyPress` 注入**：YSM 的 `InputCheckUtil.keyMatch` 用 `KeyModifier.getActiveModifier()`，读的是真实 GLFW 键态，注入事件不会让 ALT 变「按下」。改成 `setScreen(new PlayerModelScreen())` 直接开界面；鼠标点击仍走 `MouseHandler` 真实链路（`onMove` + `onPress`，GUI 坐标 × `getWindow().getGuiScale()`）。
 - **服务/作业名不能重复**：用同名再注册一个被托管进程会结束先前同名进程（表现为「客户端干净退出、socket 消失」）。验证脚本里给客户端进程用唯一名字。
-- **`ysm model set` 的路径参数是 `StringArgumentType.string()`，不含 `:`**：`local:custom/bbdemo` 必须在命令里加引号（`/ysm model set Dev "local:custom/bbdemo" -`），否则报 `Expected whitespace to end one argument`；先用 `cat.resolvePath("local:custom/bbdemo").message()` 确认目录可解析。
+- **`ysm model set` 的路径参数是 `StringArgumentType.string()`，不含 `:`**：`local:custom/demo` 必须在命令里加引号（`/ysm model set Dev "local:custom/demo" -`），否则报 `Expected whitespace to end one argument`；先用 `cat.resolvePath("local:custom/demo").message()` 确认目录可解析。
 
 踩坑清单（都是实测撞过的）：
 
 - **YSM 3.0 的模组 id 是 `ysm`**，不是 2.x 的 `yes_steve_model`。用错 id 时 `ModList.get().isLoaded(...)` 恒为 false，叠加绘制与点击会**静默失效**（代码在、界面无热点）。本仓库已改为 `ysm`。
-- **`./gradlew jar` 产出 SRG 映射 jar**（生产用），把它丢进 dev 的 `run/*/mods` 会在调用 MC 方法时 `NoSuchMethodError: Minecraft.m_91087_()`。dev 运行要用 `build/classes/java/main` + `build/resources/main` 手工打包的 jar。
+- **`gradle jar` 产出 SRG 映射 jar**（生产用），把它丢进 dev 的 `run/*/mods` 会在调用 MC 方法时 `NoSuchMethodError: Minecraft.m_91087_()`。dev 运行要用 `build/classes/java/main` + `build/resources/main` 手工打包的 jar。
 - **YSM dev 环境默认跑不起来**：`collabImplementation` 里的 EMI、`collabRuntimeOnly` 里的 moonlight/cloth-config 等 jar 未重映射 refmap，会 `@Shadow field ... was not located`。在 `local.properties` 写 `ysm.fast_run=true` 走官方的编译期依赖-only 模式。
 - **`/eval` 会被 mod 自带注解处理器打断**：YSM 在 `META-INF/services/javax.annotation.processing.Processor` 注册了处理器，其实现依赖 shadow 重定位后的 ASM 包，dev classpath 里没有 → 任何 eval 片段都报 `NoClassDefFoundError: com/elfmcys/ysm/api/internal/processor/asm/ClassVisitor`。临时把该 service 文件从 `build/resources/main/META-INF/services/` 移走（或让 eval 加 `-proc:none`）即可。
 - **复制 builtin 模型当夹具会因 identity 重复被静默丢弃**：`ysm/custom/<name>` 直接复制 `assets/ysm/builtin/default` 会与内置模型同 hash，catalog 只报 1 个 scan error、客户端看不到任何新模型。改 `ysm.json` 的 metadata/properties 让内容 hash 不同即可。
@@ -181,19 +231,21 @@ EOF
 
 | 环节 | 证据 |
 |---|---|
-| 协议、连接生命周期、错误路径 | `./gradlew test` 3/3 通过（真实 socket，非 mock 协议） |
+| 协议、连接生命周期、错误路径 | `gradle test` 3/3 通过（真实 socket，非 mock 协议） |
 | 插件端（监听/导入/保存回写） | 真实 Blockbench 实例 + 假游戏端端到端（`blockbench-plugins` 的 `plugins/bbconnectmod`） |
 | 原生库 `ysm.dll` | 由 `YesSteveModel-Native` 源码构建（clang-cl 23 + MSVC STL + Conan 2.34），导出 `JNI_OnLoad`/`JNI_OnUnload`/`YSM_ABI_0_1_0_unstable`；dev 客户端日志 `Loading native lib` 后 `NativeLibUtil.isAvailable()==true`，模型能在模型界面正常渲染 |
 | 模型界面「连接到 BB」+ 打开项目 | 真实 1.20.1 Forge dev 客户端（clientsmoke 驱动）：文件夹模型卡片底部绘制「连接到 BB」，经 `MouseHandler` 真实点击后 Blockbench 打开工程（`format=bedrock`、49 个 cube、1 张贴图、动画齐全、项目绑定模型目录），游戏聊天栏出现 `Bridge connected to 127.0.0.1:41234` 与 `Model folder opened in Blockbench` |
 | BB 保存 → 增量写回 | 无改动保存：`models/main.json` mtime 与 md5 均不变、聊天栏无同步行（0 文件写入）；加一个 cube 保存：只有 `models/main.json` 被写，聊天栏 `Sent 1 file(s) to the game; model reload: COMMITTED/28 models/0 errors` |
-| 保存后玩家仍停在原模型 | 选中 `local:custom/bbdemo`（`texture=gsl`）后写回：`ModelInfoCapability.modelId` 从 `a6e38ee2…` 变为新内容哈希 `2a4ac5a0…`，`catalog.find(id).location().value()` 仍是 `local:custom/bbdemo`，日志 `BB Connect kept Dev on local:custom/bbdemo (gsl)`，`sync_ack.reload` 尾部 `\| selection:kept` |
+| 保存后玩家仍停在原模型 | 选中 `local:custom/demo`（`texture=gsl`）后写回：`ModelInfoCapability.modelId` 从 `a6e38ee2…` 变为新内容哈希 `2a4ac5a0…`，`catalog.find(id).location().value()` 仍是 `local:custom/demo`，日志 `BB Connect kept Dev on local:custom/demo (gsl)`，`sync_ack.reload` 尾部 `\| selection:kept` |
 | 连续快速保存（串行化） | 两次保存间隔 400 ms：两次独立 `COMMITTED/28 models/0 errors`（间隔约 3 s，第二次等第一次 ack），最终磁盘包含两次改动、`catalog.report().errorCount()==0`，选择保持两次均 `selection:kept` |
 | 删除内容能写回 | 从项目删除一个 cube 保存：导出文件里对应 cube 消失、cube 总数 52→51，`Report` 无 error |
 | 恢复写入前的目录状态 | 移除全部测试 cube 后保存，`models/main.json` md5 回到测试前的 `c70fc47a…`（逐字节一致） |
 | 发布产物（插件 1.0.1 单文件） | 部署最终 `plugins/bbconnectmod/bbconnectmod.js` 并重启 BB：握手日志 `handshake accepted by plugin 1.0.1`（`PLUGIN_VERSION` 同源），再保存一次仍是 `Sent 1 file(s) … COMMITTED/28 models/0 errors \| selection:kept`，导出文件含新增 cube；随后删除该 cube 保存，md5 再次回到 `c70fc47a…` |
 | 插件端端口可配 | 插件设置 `bbconnectmod_port` 41234 → 41235 → 41234（每次重载插件生效）：`netstat` 每次都只有一个 `127.0.0.1:<port>` 监听者、旧端口不残留 |
-| 桥接项目不改名 | 桥接打开的 `bbdemo` 里新建组 `bad name` 保存写回：导出文件仍是 `"name": "bad name"`；同一项目临时去掉 `bbconnect_pack`/`ysm_project_info` 后 `Codecs.bedrock.compile()` 里同组变成 `bad_name`。设置窗口里该开关显示为关且禁用，琥珀色提示锁定原因，`set(true)`/`ui_value = true` 均被拒绝（`master_value` 保持原值 true） |
+| 桥接项目不改名 | 桥接打开的 `demo` 里新建组 `bad name` 保存写回：导出文件仍是 `"name": "bad name"`；同一项目临时去掉 `bbconnect_pack`/`ysm_project_info` 后 `Codecs.bedrock.compile()` 里同组变成 `bad_name`。设置窗口里该开关显示为关且禁用，琥珀色提示锁定原因，`set(true)`/`ui_value = true` 均被拒绝（`master_value` 保持原值 true） |
 | 依赖 ysm_utils 的延后启用 | 卸载 `ysm_utils` 后 `bbconnectmod` 变为 `dependency_blocked=true / disabled=false / missing=['ysm_utils']` 且 `41234` 停止监听；重新装载真实 `ysm_utils`（`loadFromFile(..., false)`）后自动恢复（`blocked=false`、动作重新注册、`41234` 重新监听）；详情页显示「⚠ Dependencies missing」与「Install dependencies」按钮、不显示启用/禁用按钮 |
+| 发布版插件装载（商店内容） | 把发布到注册表的 `plugins/bbconnectmod/bbconnectmod.js`（`BBPlugin.register`）装进真实 BB 实例（5.3.85）：`disabled=false`、`dependency_blocked=false`、`missing=[]`，动作注册成功，`127.0.0.1:41234` LISTENING |
+| 便携包 5.3.85 锁定行为 | 便携包 `Blockbench-Community_x64_5.3.85.exe`：`settings['community_bedrock_export_rename'].lock()` 在项目带 `Project.bbconnect_pack` 时返回 `{value:false, reason:"从游戏打开的项目锁定为关闭：…"}`，`value/ui_value` 强制 false 而 `master_value` 保持 true，去掉标记后恢复 true |
 
 ## 已知边界
 
