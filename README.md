@@ -81,6 +81,15 @@ UTF-8、换行分隔的 JSON；一行一个消息，单行上限 16 MiB。
 - **扫描忙时重试**：`ReloadableModelCatalog.reload()` 在有扫描进行中时立即返回 `BUSY`（此时刚写入的内容不会被采纳）。游戏端对 `BUSY` 最多重试 6 次、每次间隔 400 ms，避免「保存了但游戏里没变」。
 - **写入串行化由插件负责**：插件在收到上一批 `sync_ack` 前不写盘，把期间的保存合并为一次延后同步。YSM 的扫描会校验模型目录在扫描期间是否变化（`Model source changed while loading` / `Model root changed while scanning`），扫描中写盘会让整次扫描失败并保留旧目录。
 
+## 名称锁定（不改名）
+
+YSM 模型包里的骨骼、定位器、动画、动画控制器名都由包内文件按名称引用，改名会让引用断掉。绑定时模组侧插件在项目上写入两个标记：
+
+- `Project.bbconnect_pack`：本项目对应的模型包目录（插件自己的绑定标记）；
+- `Project.ysm_project_info.path`：ysm_utils 的约定字段（它也用它决定「当前信息」菜单是否可用——即 ysm_utils 判断「当前是 YSM 项目」的唯一依据，只在它自己的导入流程里写入，桥接项目由本插件补上）。
+
+Blockbench 核心据此在**桥接项目**下把「Bedrock Export: Normalize Names」锁定为关闭：读取值强制 false、设置窗口控件禁用并显示锁定原因、写入被拒绝；导出与写回一律按原名称。断开桥接（换一个普通项目）后用户原来的开关值自动恢复。
+
 ## 写回粒度
 
 插件写回是**增量**的：每个导出文件先与磁盘上现有内容逐字节比较，一致就跳过；写入走临时文件 + rename 原子替换。内容零变化的保存既不写盘也不发 `save`，因此不会触发重载，也就不会改变任何模型 id。
@@ -172,6 +181,7 @@ EOF
 | 恢复写入前的目录状态 | 移除全部测试 cube 后保存，`models/main.json` md5 回到测试前的 `c70fc47a…`（逐字节一致） |
 | 发布产物（插件 1.0.1 单文件） | 部署最终 `plugins/bbconnectmod/bbconnectmod.js` 并重启 BB：握手日志 `handshake accepted by plugin 1.0.1`（`PLUGIN_VERSION` 同源），再保存一次仍是 `Sent 1 file(s) … COMMITTED/28 models/0 errors \| selection:kept`，导出文件含新增 cube；随后删除该 cube 保存，md5 再次回到 `c70fc47a…` |
 | 插件端端口可配 | 插件设置 `bbconnectmod_port` 41234 → 41235 → 41234（每次重载插件生效）：`netstat` 每次都只有一个 `127.0.0.1:<port>` 监听者、旧端口不残留 |
+| 桥接项目不改名 | 桥接打开的 `bbdemo` 里新建组 `bad name` 保存写回：导出文件仍是 `"name": "bad name"`；同一项目临时去掉 `bbconnect_pack`/`ysm_project_info` 后 `Codecs.bedrock.compile()` 里同组变成 `bad_name`。设置窗口里该开关显示为关且禁用，琥珀色提示锁定原因，`set(true)`/`ui_value = true` 均被拒绝（`master_value` 保持原值 true） |
 | 依赖 ysm_utils 的延后启用 | 卸载 `ysm_utils` 后 `bbconnectmod` 变为 `dependency_blocked=true / disabled=false / missing=['ysm_utils']` 且 `41234` 停止监听；重新装载真实 `ysm_utils`（`loadFromFile(..., false)`）后自动恢复（`blocked=false`、动作重新注册、`41234` 重新监听）；详情页显示「⚠ Dependencies missing」与「Install dependencies」按钮、不显示启用/禁用按钮 |
 
 ## 已知边界
