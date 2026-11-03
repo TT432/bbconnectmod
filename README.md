@@ -141,6 +141,7 @@ EOF
 
 补充事实（实测）：
 
+- **`mcmcp_launch` 的失败判定不可信**：旧客户端仍存活或端口处于 `TIME_WAIT` 时，它可能报 `Game crashed during loading, exit=0` 并杀掉占用者，而实际新客户端已在 `run/*/logs/latest.log` 跑到 title screen、`AI Debug Server started on port <port>`。以日志为准确认真实状态；重启前先按进程名杀干净遗留客户端并换一个可 bind 的新端口，或干脆手动 `cmd.exe /c tools\run_ysm_dev.cmd <port>` 起客户端。
 - **`/eval` 的类加载器看不到模组 jar 里的类**：`com.bbconnectmod.*` 在 `/eval` 片段里编译报「程序包不存在」，要经 `Class.forName("com.bbconnectmod.ysm.YsmBridge")` 反射调用；YSM 自身（`build/classes` 直挂）反而可直接引用。
 - **Alt+Y 这类带修饰键的键位无法用 `KeyboardHandler.keyPress` 注入**：YSM 的 `InputCheckUtil.keyMatch` 用 `KeyModifier.getActiveModifier()`，读的是真实 GLFW 键态，注入事件不会让 ALT 变「按下」。改成 `setScreen(new PlayerModelScreen())` 直接开界面；鼠标点击仍走 `MouseHandler` 真实链路（`onMove` + `onPress`，GUI 坐标 × `getWindow().getGuiScale()`）。
 - **服务/作业名不能重复**：用同名再注册一个被托管进程会结束先前同名进程（表现为「客户端干净退出、socket 消失」）。验证脚本里给客户端进程用唯一名字。
@@ -169,6 +170,7 @@ EOF
 | 连续快速保存（串行化） | 两次保存间隔 400 ms：两次独立 `COMMITTED/28 models/0 errors`（间隔约 3 s，第二次等第一次 ack），最终磁盘包含两次改动、`catalog.report().errorCount()==0`，选择保持两次均 `selection:kept` |
 | 删除内容能写回 | 从项目删除一个 cube 保存：导出文件里对应 cube 消失、cube 总数 52→51，`Report` 无 error |
 | 恢复写入前的目录状态 | 移除全部测试 cube 后保存，`models/main.json` md5 回到测试前的 `c70fc47a…`（逐字节一致） |
+| 发布产物（插件 1.0.1 单文件） | 部署最终 `plugins/bbconnectmod/bbconnectmod.js` 并重启 BB：握手日志 `handshake accepted by plugin 1.0.1`（`PLUGIN_VERSION` 同源），再保存一次仍是 `Sent 1 file(s) … COMMITTED/28 models/0 errors \| selection:kept`，导出文件含新增 cube；随后删除该 cube 保存，md5 再次回到 `c70fc47a…` |
 
 ## 已知边界
 
