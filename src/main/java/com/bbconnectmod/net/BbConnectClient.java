@@ -87,7 +87,7 @@ public final class BbConnectClient {
         @Override
         public CompletableFuture<String> reload(int fileCount) {
             Minecraft client = Minecraft.getInstance();
-            boolean ysmReload = ModList.get().isLoaded("yes_steve_model") && readBoolean(Config.AUTO_RELOAD, true);
+            boolean ysmReload = ModList.get().isLoaded("ysm") && readBoolean(Config.AUTO_RELOAD, true);
             CompletableFuture<String> reload = ysmReload
                 ? YsmBridge.reloadCatalog()
                 : CompletableFuture.completedFuture("skipped");

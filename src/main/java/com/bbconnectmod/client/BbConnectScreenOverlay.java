@@ -20,7 +20,7 @@ import net.minecraftforge.fml.common.Mod;
  */
 @Mod.EventBusSubscriber(modid = BbConnectMod.MOD_ID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class BbConnectScreenOverlay {
-    private static final String YSM_MOD_ID = "yes_steve_model";
+    private static final String YSM_MOD_ID = "ysm";
     private static final int HOTSPOT_HEIGHT = 12;
     private static final int COLOR_IDLE = 0xD0202020;
     private static final int COLOR_HOVER = 0xD0386B3C;

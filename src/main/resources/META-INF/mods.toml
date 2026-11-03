@@ -28,7 +28,7 @@ game dials to the Blockbench plugin.'''
     side="CLIENT"
 
 [[dependencies.${mod_id}]]
-    modId="yes_steve_model"
+    modId="ysm"
     mandatory=false
     versionRange="[2.6,)"
     ordering="AFTER"

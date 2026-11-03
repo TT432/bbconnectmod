@@ -17,7 +17,7 @@ import org.jetbrains.annotations.Nullable;
 
 /**
  * Every Yes Steve Model reference lives in this class. Callers must check
- * {@code ModList.get().isLoaded("yes_steve_model")} before touching it, so the mod still
+ * {@code ModList.get().isLoaded("ysm")} before touching it, so the mod still
  * loads when the model mod is absent.
  */
 public final class YsmBridge {
